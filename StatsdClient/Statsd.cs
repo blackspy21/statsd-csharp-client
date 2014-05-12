@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
@@ -14,6 +15,26 @@ namespace StatsdClient
   {
     private string _prefix;
     private IOutputChannel _outputChannel;
+
+    public Statsd()
+    {
+      var configSection = ClientConfigSection.GetConfigSection();
+      if (configSection != null)
+      {
+        var config = configSection.StatsdClientConfig;
+        InitialiseInternal(() => {
+          return config.ConnectionType == ConnectionType.Tcp
+              ? (IOutputChannel)new TcpOutputChannel(config.Host, config.Port, config.RetryOnDisconnect, config.RetryAttempts)
+              : (IOutputChannel)new UdpOutputChannel(config.Host, config.Port);
+          },
+        config.Prefix,
+        config.RethrowOnError);
+      }
+      else
+      {
+        throw new ConfigurationErrorsException("Empty constructor can only be called when a valid statsd config section is provided in the configuration file.");
+      }
+    }
 
     /// <summary>
     /// Creates a new instance of the Statsd client.
